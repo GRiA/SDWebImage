@@ -41,6 +41,7 @@
 @synthesize finished = _finished;
 
 - (id)initWithRequest:(NSURLRequest *)request
+              timings:(SDDownloadTimings *)timings
               options:(SDWebImageDownloaderOptions)options
              progress:(SDWebImageDownloaderProgressBlock)progressBlock
             completed:(SDWebImageDownloaderCompletedBlock)completedBlock
@@ -55,6 +56,7 @@
         _executing = NO;
         _finished = NO;
         _expectedSize = 0;
+        _timings = timings;
         responseFromCached = YES; // Initially wrong until `connection:willCacheResponse:` is called or not called
     }
     return self;
@@ -83,7 +85,7 @@
             }];
         }
 #endif
-
+        self.timings.downloadStartTime = CFAbsoluteTimeGetCurrent();
         self.executing = YES;
         self.connection = [[NSURLConnection alloc] initWithRequest:self.request delegate:self startImmediately:NO];
         self.thread = [NSThread currentThread];
@@ -114,7 +116,8 @@
     }
     else {
         if (self.completedBlock) {
-            self.completedBlock(nil, nil, [NSError errorWithDomain:NSURLErrorDomain code:0 userInfo:@{NSLocalizedDescriptionKey : @"Connection can't be initialized"}], YES);
+            _timings.downloadFinishTime = CFAbsoluteTimeGetCurrent();
+            self.completedBlock(nil, nil, [NSError errorWithDomain:NSURLErrorDomain code:0 userInfo:@{NSLocalizedDescriptionKey : @"Connection can't be initialized"}], YES, _timings);
         }
     }
 
@@ -210,7 +213,8 @@
         [[NSNotificationCenter defaultCenter] postNotificationName:SDWebImageDownloadStopNotification object:nil];
 
         if (self.completedBlock) {
-            self.completedBlock(nil, nil, [NSError errorWithDomain:NSURLErrorDomain code:[((NSHTTPURLResponse *)response) statusCode] userInfo:nil], YES);
+            _timings.downloadFinishTime = CFAbsoluteTimeGetCurrent();
+            self.completedBlock(nil, nil, [NSError errorWithDomain:NSURLErrorDomain code:[((NSHTTPURLResponse *)response) statusCode] userInfo:nil], YES, _timings);
         }
         CFRunLoopStop(CFRunLoopGetCurrent());
         [self done];
@@ -284,7 +288,8 @@
                 CGImageRelease(partialImageRef);
                 dispatch_main_sync_safe(^{
                     if (self.completedBlock) {
-                        self.completedBlock(image, nil, nil, NO);
+                        _timings.downloadFinishTime = CFAbsoluteTimeGetCurrent();
+                        self.completedBlock(image, nil, nil, NO, _timings);
                     }
                 });
             }
@@ -340,8 +345,9 @@
     
     if (completionBlock)
     {
+        _timings.downloadFinishTime = CFAbsoluteTimeGetCurrent();
         if (self.options & SDWebImageDownloaderIgnoreCachedResponse && responseFromCached) {
-            completionBlock(nil, nil, nil, YES);
+            completionBlock(nil, nil, nil, YES, _timings);
         }
         else {
             UIImage *image = [UIImage sd_imageWithData:self.imageData];
@@ -353,10 +359,10 @@
                 image = [UIImage decodedImageWithImage:image];
             }
             if (CGSizeEqualToSize(image.size, CGSizeZero)) {
-                completionBlock(nil, nil, [NSError errorWithDomain:@"SDWebImageErrorDomain" code:0 userInfo:@{NSLocalizedDescriptionKey : @"Downloaded image has 0 pixels"}], YES);
+                completionBlock(nil, nil, [NSError errorWithDomain:@"SDWebImageErrorDomain" code:0 userInfo:@{NSLocalizedDescriptionKey : @"Downloaded image has 0 pixels"}], YES, _timings);
             }
             else {
-                completionBlock(image, self.imageData, nil, YES);
+                completionBlock(image, self.imageData, nil, YES, _timings);
             }
         }
     }
@@ -369,7 +375,8 @@
     [[NSNotificationCenter defaultCenter] postNotificationName:SDWebImageDownloadStopNotification object:nil];
 
     if (self.completedBlock) {
-        self.completedBlock(nil, nil, error, YES);
+        _timings.downloadFinishTime = CFAbsoluteTimeGetCurrent();
+        self.completedBlock(nil, nil, error, YES, _timings);
     }
 
     [self done];

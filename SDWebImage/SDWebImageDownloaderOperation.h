@@ -37,6 +37,11 @@
 @property (assign, nonatomic, readonly) SDWebImageDownloaderOptions options;
 
 /**
+ * The structure for tracking timings of of downloading process.
+ */
+@property (nonatomic, strong, readonly) SDDownloadTimings *timings;
+
+/**
  *  Initializes a `SDWebImageDownloaderOperation` object
  *
  *  @see SDWebImageDownloaderOperation
@@ -52,6 +57,7 @@
  *  @return the initialized instance
  */
 - (id)initWithRequest:(NSURLRequest *)request
+              timings:(SDDownloadTimings *)timings
               options:(SDWebImageDownloaderOptions)options
              progress:(SDWebImageDownloaderProgressBlock)progressBlock
             completed:(SDWebImageDownloaderCompletedBlock)completedBlock
