@@ -359,7 +359,20 @@
                 image = [UIImage decodedImageWithImage:image];
             }
             if (CGSizeEqualToSize(image.size, CGSizeZero)) {
-                completionBlock(nil, nil, [NSError errorWithDomain:@"SDWebImageErrorDomain" code:0 userInfo:@{NSLocalizedDescriptionKey : @"Downloaded image has 0 pixels"}], YES, _timings);
+                NSString *errorInfo = [[NSString alloc]
+                                       initWithData:self.imageData
+                                       encoding:NSASCIIStringEncoding];
+                NSUInteger errorCode = 0;
+                if ([errorInfo isEqualToString:@"BROKEN"]) {
+                    errorCode = 1;
+                } else if ([errorInfo isEqualToString:@"IGNORED"]) {
+                    errorCode = 2;
+                }
+                NSError *error = [NSError
+                                  errorWithDomain:(errorInfo ? @"CloudErrorDomain": @"SDWebImageErrorDomain")
+                                  code:errorCode
+                                  userInfo:@{NSLocalizedDescriptionKey: errorInfo ?: @"Downloaded image has 0 pixels"}];
+                completionBlock(nil, nil, error, YES, _timings);
             }
             else {
                 completionBlock(image, self.imageData, nil, YES, _timings);
