@@ -288,8 +288,8 @@
                 CGImageRelease(partialImageRef);
                 dispatch_main_sync_safe(^{
                     if (self.completedBlock) {
-                        _timings.downloadFinishTime = CFAbsoluteTimeGetCurrent();
-                        self.completedBlock(image, nil, nil, NO, _timings);
+                        self->_timings.downloadFinishTime = CFAbsoluteTimeGetCurrent();
+                        self.completedBlock(image, nil, nil, NO, self->_timings);
                     }
                 });
             }
