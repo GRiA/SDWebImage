@@ -12,6 +12,7 @@
 #import <ImageIO/ImageIO.h>
 #import "SDWebImageManager.h"
 
+
 @interface SDWebImageDownloaderOperation () <NSURLConnectionDataDelegate>
 
 @property (copy, nonatomic) SDWebImageDownloaderProgressBlock progressBlock;
@@ -69,16 +70,16 @@
             [self reset];
             return;
         }
-
+        
 #if TARGET_OS_IPHONE && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_4_0
         if ([self shouldContinueWhenAppEntersBackground]) {
             __weak __typeof__ (self) wself = self;
             self.backgroundTaskId = [[UIApplication sharedApplication] beginBackgroundTaskWithExpirationHandler:^{
                 __strong __typeof (wself) sself = wself;
-
+                
                 if (sself) {
                     [sself cancel];
-
+                    
                     [[UIApplication sharedApplication] endBackgroundTask:sself.backgroundTaskId];
                     sself.backgroundTaskId = UIBackgroundTaskInvalid;
                 }
@@ -87,11 +88,19 @@
 #endif
         self.timings.downloadStartTime = CFAbsoluteTimeGetCurrent();
         self.executing = YES;
-        self.connection = [[NSURLConnection alloc] initWithRequest:self.request delegate:self startImmediately:NO];
+        // self.connection = [[NSURLConnection alloc] initWithRequest:self.request delegate:self startImmediately:NO];
+        
+        __weak typeof(self)weakSelf = self;
+        NSURLSessionDataTask* task = [NSURLSession.sharedSession dataTaskWithRequest:self.request completionHandler:^(NSData * _Nullable data, NSURLResponse * _Nullable response, NSError * _Nullable error) {
+            __strong typeof(self)wSelf = weakSelf;
+            [wSelf connection:self.connection didReceiveData:data];
+            [wSelf connection:self.connection didReceiveResponse:response];
+        }];
+        [task resume];
         self.thread = [NSThread currentThread];
     }
 
-    [self.connection start];
+    /*[self.connection start];
 
     if (self.connection) {
         if (self.progressBlock) {
@@ -119,7 +128,7 @@
             _timings.downloadFinishTime = CFAbsoluteTimeGetCurrent();
             self.completedBlock(nil, nil, [NSError errorWithDomain:NSURLErrorDomain code:0 userInfo:@{NSLocalizedDescriptionKey : @"Connection can't be initialized"}], YES, _timings);
         }
-    }
+    }*/
 
 #if TARGET_OS_IPHONE && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_4_0
     if (self.backgroundTaskId != UIBackgroundTaskInvalid) {
